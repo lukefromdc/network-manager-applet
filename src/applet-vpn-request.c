@@ -41,6 +41,8 @@
 #define APPLET_IS_VPN_REQUEST_CLASS(klass) (G_TYPE_CHECK_CLASS_TYPE ((klass), APPLET_TYPE_VPN_REQUEST))
 #define APPLET_VPN_REQUEST_GET_CLASS(obj)  (G_TYPE_INSTANCE_GET_CLASS ((obj), APPLET_TYPE_VPN_REQUEST, AppletVpnRequestClass))
 
+#define MSG_QUIT "QUIT\n\n"
+
 typedef struct {
 	GObject parent;
 } AppletVpnRequest;
@@ -131,6 +133,7 @@ child_finished_cb (GPid pid, gint status, gpointer user_data)
 	if (settings)
 		g_variant_unref (settings);
 	g_clear_error (&error);
+	g_object_unref (self);
 }
 
 static gboolean 
@@ -139,7 +142,6 @@ child_stdout_data_cb (GIOChannel *source, GIOCondition condition, gpointer user_
 	VpnSecretsInfo *info = user_data;
 	AppletVpnRequest *self = info->vpn;
 	AppletVpnRequestPrivate *priv = APPLET_VPN_REQUEST_GET_PRIVATE (self);
-	const char *buf = "QUIT\n\n";
 	char *str;
 	int len;
 
@@ -152,7 +154,7 @@ child_stdout_data_cb (GIOChannel *source, GIOCondition condition, gpointer user_
 			/* on second line with a newline newline */
 			if (++priv->num_newlines == 2) {
 				/* terminate the child */
-				if (write (priv->child_stdin, buf, strlen (buf)) == -1)
+				if (write (priv->child_stdin, MSG_QUIT, NM_STRLEN (MSG_QUIT)) == -1)
 					return TRUE;
 			}
 		} else if (len > 0) {
@@ -189,12 +191,28 @@ find_auth_dialog_binary (const char *service,
 }
 
 static void
+child_finished_cb2 (GPid pid, gint status, gpointer user_data)
+{
+	g_object_unref (user_data);
+}
+
+static void
 free_vpn_secrets_info (SecretsRequest *req)
 {
 	VpnSecretsInfo *info = (VpnSecretsInfo *) req;
 
-	if (info->vpn)
+	if (info->vpn) {
+		AppletVpnRequestPrivate *priv = APPLET_VPN_REQUEST_GET_PRIVATE (info->vpn);
+
+		nm_clear_g_source (&priv->watch_id);
+
+		if (priv->pid) {
+			write (priv->child_stdin, MSG_QUIT, NM_STRLEN (MSG_QUIT));
+			priv->watch_id = g_child_watch_add (priv->pid, child_finished_cb2, info->vpn);
+		}
+
 		g_object_unref (info->vpn);
+	}
 }
 
 size_t
@@ -377,6 +395,7 @@ applet_vpn_request_get_secrets (SecretsRequest *req, GError **error)
 
 	/* catch when child is reaped */
 	priv->watch_id = g_child_watch_add (priv->pid, child_finished_cb, info);
+	g_object_ref (info->vpn);
 
 	/* listen to what child has to say */
 	priv->channel = g_io_channel_unix_new (priv->child_stdout);
@@ -395,18 +414,6 @@ out:
 static void
 applet_vpn_request_init (AppletVpnRequest *self)
 {
-}
-
-static gboolean
-ensure_killed (gpointer data)
-{
-	pid_t pid = GPOINTER_TO_INT (data);
-
-	if (kill (pid, 0) == 0)
-		kill (pid, SIGKILL);
-	/* ensure the child is reaped */
-	waitpid (pid, NULL, 0);
-	return FALSE;
 }
 
 static void
@@ -432,16 +439,8 @@ dispose (GObject *object)
 	if (priv->channel)
 		g_io_channel_unref (priv->channel);
 
-	if (priv->pid) {
+	if (priv->pid)
 		g_spawn_close_pid (priv->pid);
-		if (kill (priv->pid, SIGTERM) == 0)
-			g_timeout_add_seconds (2, ensure_killed, GINT_TO_POINTER (priv->pid));
-		else {
-			kill (priv->pid, SIGKILL);
-			/* ensure the child is reaped */
-			waitpid (priv->pid, NULL, 0);
-		}
-	}
 
 	g_slist_foreach (priv->lines, (GFunc) g_free, NULL);
 	g_slist_free (priv->lines);

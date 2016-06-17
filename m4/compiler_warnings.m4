@@ -2,7 +2,7 @@ dnl Check whether a particular compiler flag works with code provided,
 dnl disable it in CFLAGS if the check fails.
 AC_DEFUN([NM_COMPILER_WARNING], [
 	CFLAGS_SAVED="$CFLAGS"
-	CFLAGS="$CFLAGS -Werror -W$1"
+	CFLAGS="$CFLAGS -W$1"
 	AC_MSG_CHECKING(whether -W$1 works)
 
 	AC_COMPILE_IFELSE([AC_LANG_SOURCE([[]])], [
@@ -22,7 +22,7 @@ AC_DEFUN([NM_COMPILER_WARNING], [
 AC_DEFUN([NM_COMPILER_WARNINGS],
 [AC_ARG_ENABLE(more-warnings,
 	AS_HELP_STRING([--enable-more-warnings], [Possible values: no/yes/error]),
-	set_more_warnings="$enableval",set_more_warnings=error)
+	set_more_warnings="$enableval",set_more_warnings=yes)
 AC_MSG_CHECKING(for more warnings)
 if test "$GCC" = "yes" -a "$set_more_warnings" != "no"; then
 	AC_MSG_RESULT(yes)
@@ -41,10 +41,10 @@ if test "$GCC" = "yes" -a "$set_more_warnings" != "no"; then
 	NM_COMPILER_WARNING([unknown-warning-option], [])
 
 	CFLAGS_SAVED="$CFLAGS"
-	CFLAGS_MORE_WARNINGS="-Wall -std=gnu89"
+	CFLAGS_MORE_WARNINGS="-Wall -std=c99"
 
 	if test "x$set_more_warnings" = xerror; then
-		CFLAGS_MORE_WARNINGS="$CFLAGS_MORE_WARNINGS -Werror"
+		CFLAGS_MORE_WARNINGS="$CFLAGS_MORE_WARNINGS"
 	fi
 
 	for option in -Wshadow -Wmissing-declarations -Wmissing-prototypes \

@@ -1096,7 +1096,7 @@ applet_get_active_vpn_connection (NMApplet *applet,
 {
 	const GPtrArray *active_list;
 	NMActiveConnection *ret = NULL;
-	NMVpnConnectionState state = NM_VPN_CONNECTION_STATE_UNKNOWN;
+	NMVpnConnectionState state;
 	int i;
 
 	active_list = nm_client_get_active_connections (applet->nm_client);
@@ -1599,6 +1599,17 @@ static void nma_menu_show_cb (GtkWidget *menu, NMApplet *applet)
 {
 	g_return_if_fail (menu != NULL);
 	g_return_if_fail (applet != NULL);
+	/*Set up theme and transparency support*/
+	GtkWidget *toplevel = gtk_widget_get_toplevel (menu);
+	/* Fix any failures of compiz/other wm's to communicate with gtk for transparency */
+	GdkScreen *screen = gtk_widget_get_screen(GTK_WIDGET(toplevel));
+	GdkVisual *visual = gdk_screen_get_rgba_visual(screen);
+		gtk_widget_set_visual(GTK_WIDGET(toplevel), visual); 
+	/* Set menu and it's toplevel window to follow panel theme */
+	GtkStyleContext *context;
+	context = gtk_widget_get_style_context (GTK_WIDGET(toplevel));
+	gtk_style_context_add_class(context,"gnome-panel-menu-bar");
+	gtk_style_context_add_class(context,"mate-panel-menu-bar");
 
 	if (applet->status_icon)
 		gtk_status_icon_set_tooltip_text (applet->status_icon, NULL);
@@ -1888,6 +1899,17 @@ static GtkWidget *nma_context_menu_create (NMApplet *applet)
 		gtk_menu_shell_append (menu, menu_item);
 	}
 
+	/*Set up theme and transparency support*/
+	GtkWidget *toplevel = gtk_widget_get_toplevel (menu);
+	/* Fix any failures of compiz/other wm's to communicate with gtk for transparency */
+	GdkScreen *screen = gtk_widget_get_screen(GTK_WIDGET(toplevel));
+	GdkVisual *visual = gdk_screen_get_rgba_visual(screen);
+	gtk_widget_set_visual(GTK_WIDGET(toplevel), visual); 
+	/* Set menu and it's toplevel window to follow panel theme */
+	GtkStyleContext *context;
+	context = gtk_widget_get_style_context (GTK_WIDGET(toplevel));
+	gtk_style_context_add_class(context,"gnome-panel-menu-bar");
+	gtk_style_context_add_class(context,"mate-panel-menu-bar");
 	gtk_widget_show_all (GTK_WIDGET (menu));
 
 	return GTK_WIDGET (menu);
@@ -3330,4 +3352,3 @@ static void nma_class_init (NMAppletClass *klass)
 
 	oclass->finalize = finalize;
 }
-

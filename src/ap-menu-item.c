@@ -102,31 +102,21 @@ update_icon (NMNetworkMenuItem *item, NMApplet *applet)
 
 	if (priv->is_adhoc)
 		icon_name = "nm-adhoc";
-	else
+	else{
 		icon_name = mobile_helper_get_quality_icon_name (priv->int_strength);
+	}
+	/*Use the premade icon with the lock icon already included if encrypted*/
+	if (priv->is_encrypted) {
+		icon_name = g_strdup_printf ("%s-secure", icon_name);
+	}
+
 
 	icon = nma_icon_check_and_load (icon_name, applet);
 	if (icon) {
-		if (priv->is_encrypted) {
-			GdkPixbuf *encrypted = nma_icon_check_and_load ("nm-secure-lock", applet);
-
-			if (encrypted) {
-				icon = icon_free = gdk_pixbuf_copy (icon);
-	                                /* Reduce width/height to avoid failed assert          */
-	                                /* dest_y >= 0 && dest_y + dest_height <= dest->height */
-				gdk_pixbuf_composite (encrypted, icon, 0, 0,
-				                      (gdk_pixbuf_get_width (encrypted) -2),
-				                      (gdk_pixbuf_get_height (encrypted) - 2),
-				                      0, 0, 1.0, 1.0,
-				                      GDK_INTERP_NEAREST, 255);
-			}
-		}
-
 		/* Scale to menu size if larger so the menu doesn't look awful */
 		if (gdk_pixbuf_get_height (icon) > 24 || gdk_pixbuf_get_width (icon) > 24)
 			icon = icon_free2 = gdk_pixbuf_scale_simple (icon, 24, 24, GDK_INTERP_BILINEAR);
 	}
-
 	gtk_image_set_from_pixbuf (GTK_IMAGE (priv->strength), icon);
 }
 

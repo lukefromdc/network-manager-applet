@@ -2,7 +2,7 @@
 _Name=Network
 _Comment=Manage your network connections
 Icon=nm-device-wireless
-Exec=nm-applet
+Exec=nm-applet --indicator
 Terminal=false
 Type=Application
 NoDisplay=true
